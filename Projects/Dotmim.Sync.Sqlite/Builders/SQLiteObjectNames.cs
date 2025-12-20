@@ -193,6 +193,15 @@ namespace Dotmim.Sync.Sqlite
             this.TrackingTableSchemaName = string.Empty;
         }
 
+        /// <summary>
+        /// Creates the WHERE condition for tracking table updates during sync operations.
+        /// This ensures tracking is only updated when the row should be synced based on conflict resolution rules.
+        /// </summary>
+        private string CreateTrackingUpdateWhereClause()
+        {
+            return $"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL OR @sync_force_write = 1)";
+        }
+
         private string CreateResetCommandText()
         {
             var stringBuilder = new StringBuilder();
@@ -302,7 +311,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
             stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
-            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL);");
+            stringBuilder.AppendLine(this.CreateTrackingUpdateWhereClause() + ";");
             var cmdtext = stringBuilder.ToString();
 
             return cmdtext;
@@ -386,7 +395,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"[timestamp] = {SqliteObjectNames.TimestampValue},");
             stringBuilder.AppendLine($"[last_change_datetime] = datetime('now')");
             stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
-            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL OR @sync_force_write = 1);");
+            stringBuilder.AppendLine(this.CreateTrackingUpdateWhereClause() + ";");
 
             var cmdtext = stringBuilder.ToString();
 
@@ -444,7 +453,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
             stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
-            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL OR @sync_force_write = 1);");
+            stringBuilder.AppendLine(this.CreateTrackingUpdateWhereClause() + ";");
 
             var cmdText = stringBuilder.ToString();
 
