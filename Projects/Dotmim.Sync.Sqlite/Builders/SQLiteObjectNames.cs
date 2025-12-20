@@ -124,9 +124,9 @@ namespace Dotmim.Sync.Sqlite
                 DbCommandType.DeleteTrigger => string.Format(DeleteTriggerName, triggerNormalizedName),
                 DbCommandType.UpdateUntrackedRows => this.CreateUpdateUntrackedRowsCommandText(),
                 DbCommandType.Reset => this.CreateResetCommandText(),
+                DbCommandType.PreDeleteRows or DbCommandType.PreInsertRows or DbCommandType.PreUpdateRows => this.CreateSyncMarkerTableCommandText(),
                 DbCommandType.DisableConstraints or DbCommandType.EnableConstraints or DbCommandType.PreDeleteRow
-                or DbCommandType.PreDeleteRows or DbCommandType.PreInsertRow or DbCommandType.PreInsertRows
-                or DbCommandType.PreUpdateRow or DbCommandType.PreUpdateRows => "Select 0",
+                or DbCommandType.PreInsertRow or DbCommandType.PreUpdateRow => "Select 0",
                 _ => null,
             };
         }
@@ -200,6 +200,15 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"DELETE FROM {this.TableQuotedShortName};");
             stringBuilder.AppendLine($"DELETE FROM {this.TrackingTableQuotedShortName};");
 
+            return stringBuilder.ToString();
+        }
+
+        private string CreateSyncMarkerTableCommandText()
+        {
+            // Drop any existing marker table and create a new one to signal triggers that sync is in progress
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("DROP TABLE IF EXISTS temp.__dm_sync_marker;");
+            stringBuilder.AppendLine("CREATE TEMP TABLE __dm_sync_marker (id INTEGER);");
             return stringBuilder.ToString();
         }
 

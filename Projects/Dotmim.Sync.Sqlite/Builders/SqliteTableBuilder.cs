@@ -361,6 +361,7 @@ namespace Dotmim.Sync.Sqlite
             string argAnd = string.Empty;
 
             createTrigger.AppendLine();
+            createTrigger.AppendLine("WHEN (SELECT COUNT(*) FROM sqlite_temp_master WHERE type='table' AND name='__dm_sync_marker') = 0");
             createTrigger.AppendLine("BEGIN");
             createTrigger.AppendLine("-- If row was deleted before, it already exists, so just make an update");
 
@@ -409,6 +410,7 @@ namespace Dotmim.Sync.Sqlite
             string argAnd = string.Empty;
 
             createTrigger.AppendLine();
+            createTrigger.AppendLine("WHEN (SELECT COUNT(*) FROM sqlite_temp_master WHERE type='table' AND name='__dm_sync_marker') = 0");
             createTrigger.AppendLine("BEGIN");
 
             createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {this.trackingTableNames.QuotedName} (");
@@ -450,6 +452,7 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine();
 
             createTrigger.AppendLine();
+            createTrigger.AppendLine("WHEN (SELECT COUNT(*) FROM sqlite_temp_master WHERE type='table' AND name='__dm_sync_marker') = 0");
             createTrigger.AppendLine($"Begin ");
 
             createTrigger.AppendLine($"\tUPDATE {this.trackingTableNames.QuotedName} ");
