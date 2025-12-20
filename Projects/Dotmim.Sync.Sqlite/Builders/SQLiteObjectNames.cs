@@ -301,7 +301,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)};");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
+            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL);");
             var cmdtext = stringBuilder.ToString();
 
             return cmdtext;
@@ -384,7 +385,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine($"[timestamp] = {SqliteObjectNames.TimestampValue},");
             stringBuilder.AppendLine($"[last_change_datetime] = datetime('now')");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)};");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
+            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL OR @sync_force_write = 1);");
 
             var cmdtext = stringBuilder.ToString();
 
@@ -442,6 +444,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
             stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)}");
+            stringBuilder.AppendLine($"  AND (([timestamp] < @sync_min_timestamp OR [update_scope_id] = @sync_scope_id) OR [timestamp] IS NULL OR @sync_force_write = 1);");
 
             var cmdText = stringBuilder.ToString();
 
