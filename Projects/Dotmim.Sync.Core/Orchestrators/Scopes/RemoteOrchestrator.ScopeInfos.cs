@@ -107,6 +107,11 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext Context, ScopeInfo ServerScopeInfo, bool ShouldProvision)> InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
+            if (!overwrite && this.scopeInfoCache?.TryGetValue(context.ScopeName, out var cached) == true && cached?.Schema != null
+                && !this.Interceptors.HasInterceptors<ScopeInfoLoadingArgs>()
+                && !this.Interceptors.HasInterceptors<ScopeInfoLoadedArgs>())
+                return (context, cached, false);
+
             try
             {
                 bool shouldProvision = false;
@@ -185,6 +190,8 @@ namespace Dotmim.Sync
                         (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
+
+                    this.CacheScopeInfo(sScopeInfo);
 
                     return (context, sScopeInfo, shouldProvision);
                 }

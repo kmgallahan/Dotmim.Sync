@@ -409,6 +409,8 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new ScopeInfoSavedArgs(context, scopeInfo, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     action.Command.Dispose();
 
+                    this.CacheScopeInfo(scopeInfo);
+
                     return (context, scopeInfo);
                 }
             }
@@ -454,6 +456,8 @@ namespace Dotmim.Sync
 
                     await this.InterceptAsync(new ScopeInfoSavedArgs(context, scopeInfo, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     action.Command.Dispose();
+
+                    this.InvalidateScopeInfoCache(scopeInfo.Name);
 
                     return (context, true);
                 }

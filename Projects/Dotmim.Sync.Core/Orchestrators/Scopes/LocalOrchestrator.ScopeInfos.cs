@@ -60,6 +60,11 @@ namespace Dotmim.Sync
             SyncContext context,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
+            if (this.scopeInfoCache?.TryGetValue(context.ScopeName, out var cached) == true && cached?.Schema != null
+                && !this.Interceptors.HasInterceptors<ScopeInfoLoadingArgs>()
+                && !this.Interceptors.HasInterceptors<ScopeInfoLoadedArgs>())
+                return (context, cached);
+
             try
             {
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
@@ -89,6 +94,8 @@ namespace Dotmim.Sync
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
+
+                    this.CacheScopeInfo(cScopeInfo);
 
                     return (context, cScopeInfo);
                 }

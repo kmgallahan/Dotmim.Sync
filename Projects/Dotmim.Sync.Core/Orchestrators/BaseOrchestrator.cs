@@ -68,6 +68,22 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual ILogger Logger { get; set; }
 
+        protected System.Collections.Generic.Dictionary<string, ScopeInfo> scopeInfoCache;
+
+        internal void CacheScopeInfo(ScopeInfo scopeInfo)
+        {
+            if (scopeInfo?.Name == null)
+                return;
+
+            this.scopeInfoCache ??= new(StringComparer.OrdinalIgnoreCase);
+            this.scopeInfoCache[scopeInfo.Name] = scopeInfo;
+        }
+
+        internal void InvalidateScopeInfoCache(string scopeName)
+        {
+            this.scopeInfoCache?.Remove(scopeName);
+        }
+
         /// <summary>
         /// Remove all Interceptors based on type of ProgressArgs.
         /// </summary>
