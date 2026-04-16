@@ -54,8 +54,12 @@ namespace Dotmim.Sync
             if (item == null)
                 return;
 
-            if (this.Any(p => p.Name.Equals(item.Name, SyncGlobalization.DataSourceStringComparison)))
-                throw new SyncParameterAlreadyExistsException(item.Name);
+            var sc = SyncGlobalization.DataSourceStringComparison;
+            foreach (var p in this.InnerCollection)
+            {
+                if (string.Equals(p.Name, item.Name, sc))
+                    throw new SyncParameterAlreadyExistsException(item.Name);
+            }
 
             this.InnerCollection.Add(item);
         }
@@ -82,7 +86,15 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(name))
                     throw new ArgumentNullException(nameof(name));
 
-                return this.InnerCollection.FirstOrDefault(p => string.Equals(p.Name, name, SyncGlobalization.DataSourceStringComparison));
+                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                foreach (var p in this.InnerCollection)
+                {
+                    if (string.Equals(p.Name, name, sc))
+                        return p;
+                }
+
+                return null;
             }
         }
 
@@ -91,16 +103,32 @@ namespace Dotmim.Sync
         /// </summary>
         public void Clear() => this.InnerCollection.Clear();
 
+        private static readonly Comparer<SyncParameter> ParameterNameOrdinalComparer =
+            Comparer<SyncParameter>.Create(static (a, b) => string.CompareOrdinal(a?.Name, b?.Name));
+
         /// <summary>
         /// Get a hash code to identify the parameters uniquely.
         /// </summary>
         public string GetHash()
         {
-            var flatParameters = string.Concat(this.OrderBy(p => p.Name).Select(p => $"{p.Name}.{p.Value}"));
-            var b = Encoding.UTF8.GetBytes(flatParameters);
-            var hash1 = HashAlgorithm.SHA256.Create(b);
-            var hash1String = Convert.ToBase64String(hash1);
-            return hash1String;
+            // Snapshot + in-place sort. Avoids OrderBy's IOrderedEnumerable + comparer delegate allocations and the
+            // per-parameter string-interpolation that the prior Select(p => $"{p.Name}.{p.Value}") allocated.
+            var snapshot = new SyncParameter[this.InnerCollection.Count];
+            this.InnerCollection.CopyTo(snapshot, 0);
+            Array.Sort(snapshot, ParameterNameOrdinalComparer);
+
+            var sb = new StringBuilder(snapshot.Length * 32);
+            for (var i = 0; i < snapshot.Length; i++)
+            {
+                var p = snapshot[i];
+                sb.Append(p.Name);
+                sb.Append('.');
+                sb.Append(p.Value);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var hash = HashAlgorithm.SHA256.Create(bytes);
+            return Convert.ToBase64String(hash);
         }
 
         /// <summary>

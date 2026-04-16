@@ -14,7 +14,7 @@ namespace Dotmim.Sync
     [CollectionDataContract(Name = "cols", ItemName = "col"), Serializable]
     public class SyncColumns : ICollection<SyncColumn>, IList<SyncColumn>
     {
-        private Dictionary<string, int> indexes = [];
+        private Dictionary<string, int> indexes = new(StringComparer.OrdinalIgnoreCase);
         private Collection<SyncColumn> innerCollection = [];
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace Dotmim.Sync
             get
             {
                 // InnerCollection.FirstOrDefault(c => string.Equals(c.ObjectName, objectName, SyncGlobalization.DataSourceStringComparison));
-                if (this.indexes.TryGetValue(columnName.ToUpperInvariant(), out var index))
+                if (this.indexes.TryGetValue(columnName, out var index))
                     return this.InnerCollection[index];
 
                 return null;
@@ -141,7 +141,7 @@ namespace Dotmim.Sync
             for (int i = 0; i < this.InnerCollection.Count; i++)
             {
                 var column = this.InnerCollection[i];
-                this.indexes[column.ColumnName.ToUpperInvariant()] = i;
+                this.indexes[column.ColumnName] = i;
                 column.Ordinal = i;
             }
         }
@@ -192,12 +192,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns the index of a column in the collection.
         /// </summary>
-        public int IndexOf(SyncColumn item) => this.indexes[item.ColumnName.ToUpperInvariant()];
+        public int IndexOf(SyncColumn item) => this.indexes[item.ColumnName];
 
         /// <summary>
         /// Returns the index of a column in the collection.
         /// </summary>
-        public int IndexOf(string columnName) => this.indexes[columnName.ToUpperInvariant()];
+        public int IndexOf(string columnName) => this.indexes[columnName];
 
         /// <summary>
         /// Remove a column at a specific index.

@@ -49,5 +49,14 @@ namespace Dotmim.Sync
         {
             yield return this.Name;
         }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SyncParameter otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            return NameEquals(this.Name, otherInstance.Name, SyncGlobalization.DataSourceStringComparison);
+        }
     }
 }

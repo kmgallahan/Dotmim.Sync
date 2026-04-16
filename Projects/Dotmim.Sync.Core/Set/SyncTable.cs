@@ -296,6 +296,18 @@ namespace Dotmim.Sync
             yield return this.SchemaName;
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SyncTable otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.SchemaName, otherInstance.SchemaName, sc);
+        }
+
         /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
         public override bool EqualsByProperties(SyncTable otherInstance)
         {

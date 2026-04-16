@@ -77,24 +77,50 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Reusable delegate for string equality using <see cref="SyncGlobalization.DataSourceStringComparison"/>.
+        /// Prefer this at <see cref="CompareWith{T}(IEnumerable{T}, IEnumerable{T}, Func{T, T, bool})"/> call sites
+        /// over an inline lambda that captures the comparison mode, to avoid per-call delegate + closure allocations.
+        /// </summary>
+        public static readonly Func<string, string, bool> StringEqualsByDataSourceComparison =
+            static (a, b) => string.Equals(a, b, SyncGlobalization.DataSourceStringComparison);
+
+        /// <summary>
         /// Compare two IEnumerable of T. If both are null, return true. If one is null and not the other, return false.
         /// </summary>
         public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other, Func<T, T, bool> compare)
         {
-            // checking null ref
-            if ((source == null && other != null) || (source != null && other == null))
+            if (source is null)
+                return other is null;
+            if (other is null)
                 return false;
 
-            // If both are null, return true
-            if (source == null && other == null)
-                return true;
-            var lstSource = source.ToList();
+            // Materialize once — avoid re-enumerating 'other' in the inner loop (which was the source of
+            // List<>.Enumerator boxing and ToList allocations in the prior implementation).
+            var sourceList = source as IReadOnlyList<T> ?? source.ToList();
+            var otherList = other as IReadOnlyList<T> ?? other.ToList();
 
-            if (lstSource.Count != other.Count())
+            if (sourceList.Count != otherList.Count)
                 return false;
 
-            // Check all items are identical
-            return lstSource.All(sourceItem => other.Any(otherItem => compare(sourceItem, otherItem)));
+            var otherCount = otherList.Count;
+            for (var i = 0; i < sourceList.Count; i++)
+            {
+                var sourceItem = sourceList[i];
+                var found = false;
+                for (var j = 0; j < otherCount; j++)
+                {
+                    if (compare(sourceItem, otherList[j]))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                    return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -103,24 +129,42 @@ namespace Dotmim.Sync
         public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other)
             where T : class
         {
-            // checking null ref
-            if ((source == null && other != null) || (source != null && other == null))
+            if (source is null)
+                return other is null;
+            if (other is null)
                 return false;
 
-            // If both are null, return true
-            if (source == null && other == null)
-                return true;
+            var sourceList = source as IReadOnlyList<T> ?? source.ToList();
+            var otherList = other as IReadOnlyList<T> ?? other.ToList();
 
-            var lstSource = source.ToList();
-
-            if (lstSource.Count != other.Count())
+            if (sourceList.Count != otherList.Count)
                 return false;
 
-            // Check all items are identical
-            return lstSource.All(sourceItem => other.Any(otherItem =>
+            var otherCount = otherList.Count;
+            for (var i = 0; i < sourceList.Count; i++)
             {
-                return sourceItem is SyncNamedItem<T> cSourceItem && otherItem is SyncNamedItem<T> cOtherItem ? cSourceItem.EqualsByProperties(otherItem) : sourceItem.Equals(otherItem);
-            }));
+                var sourceItem = sourceList[i];
+                var namedSource = sourceItem as SyncNamedItem<T>;
+                var found = false;
+                for (var j = 0; j < otherCount; j++)
+                {
+                    var otherItem = otherList[j];
+                    var equal = namedSource is not null && otherItem is SyncNamedItem<T>
+                        ? namedSource.EqualsByProperties(otherItem)
+                        : sourceItem.Equals(otherItem);
+
+                    if (equal)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                    return false;
+            }
+
+            return true;
         }
 
         /// <summary>

@@ -133,8 +133,6 @@ namespace Dotmim.Sync
             if (otherInstance == null)
                 return false;
 
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
             // Check name properties
             if (!this.EqualsByName(otherInstance))
                 return false;
@@ -142,7 +140,7 @@ namespace Dotmim.Sync
             // Compare all list properties
             // For each, check if they are both null or not null
             // If not null, compare each item
-            if (!this.CustomWheres.CompareWith(otherInstance.CustomWheres, (cw, ocw) => string.Equals(ocw, cw, sc)))
+            if (!this.CustomWheres.CompareWith(otherInstance.CustomWheres, SyncExtensions.StringEqualsByDataSourceComparison))
                 return false;
 
             if (!this.Joins.CompareWith(otherInstance.Joins))

@@ -66,31 +66,9 @@ namespace Dotmim.Sync
 
                 var parser = new TableParser(tableName);
                 var tblName = parser.TableName;
-                var schemaName = parser.SchemaName;
-                schemaName ??= string.Empty;
+                var schemaName = parser.SchemaName ?? string.Empty;
 
-                var sc = SyncGlobalization.DataSourceStringComparison;
-
-                var table = this.InnerCollection.FirstOrDefault(innerTable =>
-                {
-                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName, StringComparison.Ordinal);
-                });
-
-                // trying a fallback on default schema name: dbo for sql server, public for postgresql
-                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo", StringComparison.Ordinal);
-                    });
-
-                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public", StringComparison.Ordinal);
-                    });
-
-                return table;
+                return this.FindTable(tblName, schemaName);
             }
         }
 
@@ -107,31 +85,42 @@ namespace Dotmim.Sync
                 var parser = new TableParser(tableName);
                 var tblName = parser.TableName;
 
-                schemaName ??= string.Empty;
-
-                var sc = SyncGlobalization.DataSourceStringComparison;
-
-                var table = this.InnerCollection.FirstOrDefault(innerTable =>
-                {
-                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName, StringComparison.Ordinal);
-                });
-
-                // trying a fallback on default schema name: dbo for sql server, public for postgresql
-                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo", StringComparison.Ordinal);
-                    });
-
-                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public", StringComparison.Ordinal);
-                    });
-
-                return table;
+                return this.FindTable(tblName, schemaName ?? string.Empty);
             }
+        }
+
+        /// <summary>
+        /// Single-pass lookup: match by (table, schema), falling back to "dbo" then "public" schemas for SQL Server / Postgres ergonomics.
+        /// Avoids the three successive <see cref="Enumerable.FirstOrDefault{T}(IEnumerable{T}, Func{T, bool})"/> chains (each allocating a closure + lambda) that the previous implementation used.
+        /// </summary>
+        private SyncTable FindTable(string tblName, string schemaName)
+        {
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            SyncTable primary = null;
+            SyncTable fallbackDbo = null;
+            SyncTable fallbackPublic = null;
+
+            foreach (var innerTable in this.InnerCollection)
+            {
+                if (!string.Equals(innerTable.TableName, tblName, sc))
+                    continue;
+
+                var innerSchema = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+
+                if (string.Equals(innerSchema, schemaName, StringComparison.Ordinal))
+                {
+                    primary = innerTable;
+                    break;
+                }
+
+                if (fallbackDbo is null && string.Equals(innerSchema, "dbo", StringComparison.Ordinal))
+                    fallbackDbo = innerTable;
+                else if (fallbackPublic is null && string.Equals(innerSchema, "public", StringComparison.Ordinal))
+                    fallbackPublic = innerTable;
+            }
+
+            return primary ?? fallbackDbo ?? fallbackPublic;
         }
 
         /// <summary>

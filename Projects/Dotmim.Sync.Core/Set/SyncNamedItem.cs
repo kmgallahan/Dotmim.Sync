@@ -76,5 +76,25 @@ namespace Dotmim.Sync
         /// Returns the hash code for this instance.
         /// </summary>
         public override int GetHashCode() => base.GetHashCode();
+
+        /// <summary>
+        /// Compares two name-property strings using the same null/empty equivalence as the base
+        /// <see cref="EqualsByName(T)"/> loop: both null-or-empty → equal, one null-or-empty and the other not → not equal,
+        /// otherwise standard <see cref="StringComparison"/> compare.
+        /// Use this in <see cref="EqualsByName(T)"/> overrides to preserve base-class semantics without the iterator allocation.
+        /// </summary>
+        protected static bool NameEquals(string a, string b, StringComparison comparison)
+        {
+            var aEmpty = string.IsNullOrEmpty(a);
+            var bEmpty = string.IsNullOrEmpty(b);
+
+            if (aEmpty && bEmpty)
+                return true;
+
+            if (aEmpty || bEmpty)
+                return false;
+
+            return string.Equals(a, b, comparison);
+        }
     }
 }

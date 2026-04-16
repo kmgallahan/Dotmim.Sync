@@ -412,6 +412,15 @@ namespace Dotmim.Sync
             yield return this.ColumnName;
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SyncColumn otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            return NameEquals(this.ColumnName, otherInstance.ColumnName, SyncGlobalization.DataSourceStringComparison);
+        }
+
         /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
         public override bool EqualsByProperties(SyncColumn otherInstance)
         {

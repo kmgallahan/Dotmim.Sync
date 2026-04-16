@@ -71,7 +71,7 @@ namespace Dotmim.Sync
         public void AddParameter(string parameterName, DbType type, bool allowNull = false, string defaultValue = null, int maxLength = 0)
         {
 
-            if (this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
+            if (this.ContainsParameterName(parameterName))
                 throw new FilterParameterAlreadyExistsException(parameterName, this.TableName);
 
             var parameter = new SetupFilterParameter { Name = parameterName, DbType = type, DefaultValue = defaultValue, AllowNull = allowNull, MaxLength = maxLength };
@@ -88,7 +88,7 @@ namespace Dotmim.Sync
         public void AddParameter(string columnName, string tableName, string schemaName, bool allowNull = false, string defaultValue = null)
         {
 
-            if (this.Parameters.Any(p => string.Equals(p.Name, columnName, SyncGlobalization.DataSourceStringComparison)))
+            if (this.ContainsParameterName(columnName))
                 throw new FilterParameterAlreadyExistsException(columnName, this.TableName);
 
             this.Parameters.Add(new SetupFilterParameter { Name = columnName, TableName = tableName, SchemaName = schemaName, DefaultValue = defaultValue, AllowNull = allowNull });
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void AddParameter(string columnName, string tableName, bool allowNull = false, string defaultValue = null)
         {
-            if (this.Parameters.Any(p => string.Equals(p.Name, columnName, SyncGlobalization.DataSourceStringComparison)))
+            if (this.ContainsParameterName(columnName))
                 throw new FilterParameterAlreadyExistsException(columnName, this.TableName);
 
             this.Parameters.Add(new SetupFilterParameter { Name = columnName, TableName = tableName, DefaultValue = defaultValue, AllowNull = allowNull });
@@ -118,11 +118,30 @@ namespace Dotmim.Sync
         /// </summary>
         public SetupFilter AddWhere(string columnName, string tableName, string parameterName, string schemaName = null)
         {
-            if (!this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
+            if (!this.ContainsParameterName(parameterName))
                 throw new FilterTrackingWhereException(parameterName);
 
             this.Wheres.Add(new SetupFilterWhere { ColumnName = columnName, TableName = tableName, ParameterName = parameterName, SchemaName = schemaName });
             return this;
+        }
+
+        /// <summary>
+        /// Returns true if any parameter's Name matches under <see cref="SyncGlobalization.DataSourceStringComparison"/>.
+        /// Replaces per-site <c>Any(p => string.Equals(...))</c> which allocated a closure + delegate per call.
+        /// </summary>
+        private bool ContainsParameterName(string name)
+        {
+            if (this.Parameters is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+            foreach (var p in this.Parameters)
+            {
+                if (string.Equals(p.Name, name, sc))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -152,6 +171,18 @@ namespace Dotmim.Sync
             yield return this.SchemaName;
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SetupFilter otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.SchemaName, otherInstance.SchemaName, sc);
+        }
+
         /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
         public override bool EqualsByProperties(SetupFilter otherInstance)
         {
@@ -175,8 +206,7 @@ namespace Dotmim.Sync
                 return false;
 
             // since it's string comparison, don't rely on internal comparison and provide our own comparison func, using StringComparison
-            var sc = SyncGlobalization.DataSourceStringComparison;
-            return this.CustomWheres.CompareWith(otherInstance.CustomWheres, (c, oc) => string.Equals(c, oc, sc));
+            return this.CustomWheres.CompareWith(otherInstance.CustomWheres, SyncExtensions.StringEqualsByDataSourceComparison);
         }
 
         /// <summary>

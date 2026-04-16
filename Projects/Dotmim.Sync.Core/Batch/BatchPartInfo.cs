@@ -97,5 +97,17 @@ namespace Dotmim.Sync.Batch
             yield return this.TableName;
             yield return this.SchemaName;
         }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(BatchPartInfo otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.SchemaName, otherInstance.SchemaName, sc);
+        }
     }
 }

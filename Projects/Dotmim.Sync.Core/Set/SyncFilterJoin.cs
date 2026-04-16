@@ -93,5 +93,23 @@ namespace Dotmim.Sync
             yield return this.LeftTableSchemaName;
             yield return this.RightTableSchemaName;
         }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SyncFilterJoin otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return this.JoinEnum == otherInstance.JoinEnum
+                && NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.LeftColumnName, otherInstance.LeftColumnName, sc)
+                && NameEquals(this.LeftTableName, otherInstance.LeftTableName, sc)
+                && NameEquals(this.RightColumnName, otherInstance.RightColumnName, sc)
+                && NameEquals(this.TableSchemaName, otherInstance.TableSchemaName, sc)
+                && NameEquals(this.LeftTableSchemaName, otherInstance.LeftTableSchemaName, sc)
+                && NameEquals(this.RightTableSchemaName, otherInstance.RightTableSchemaName, sc);
+        }
     }
 }

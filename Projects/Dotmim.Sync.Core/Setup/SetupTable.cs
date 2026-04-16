@@ -99,14 +99,12 @@ namespace Dotmim.Sync
             if (otherInstance == null)
                 return false;
 
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
             if (!this.EqualsByName(otherInstance))
                 return false;
 
             // checking properties
             return this.SyncDirection == otherInstance.SyncDirection
-                    && this.Columns.CompareWith(otherInstance.Columns, (c, oc) => string.Equals(c, oc, sc));
+                    && this.Columns.CompareWith(otherInstance.Columns, SyncExtensions.StringEqualsByDataSourceComparison);
         }
 
         /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
@@ -114,6 +112,18 @@ namespace Dotmim.Sync
         {
             yield return this.TableName;
             yield return this.SchemaName;
+        }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SetupTable otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.SchemaName, otherInstance.SchemaName, sc);
         }
     }
 }

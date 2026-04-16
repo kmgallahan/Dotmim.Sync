@@ -42,5 +42,19 @@ namespace Dotmim.Sync.Setup
             yield return this.ColumnName;
             yield return this.ParameterName;
         }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByName(T)"/>
+        public override bool EqualsByName(SetupFilterWhere otherInstance)
+        {
+            if (otherInstance is null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return NameEquals(this.TableName, otherInstance.TableName, sc)
+                && NameEquals(this.SchemaName, otherInstance.SchemaName, sc)
+                && NameEquals(this.ColumnName, otherInstance.ColumnName, sc)
+                && NameEquals(this.ParameterName, otherInstance.ParameterName, sc);
+        }
     }
 }
