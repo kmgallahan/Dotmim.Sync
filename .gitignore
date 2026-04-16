@@ -277,3 +277,12 @@ __pycache__/
 
 # InferSharp config file
 .infersharpconfig
+
+# Serena MCP cache
+.serena/
+
+# IDE publish profiles
+**/Properties/PublishProfiles/
+
+# Local-only build overrides (NuGetPublishLocation etc.)
+Directory.Build.local.props
