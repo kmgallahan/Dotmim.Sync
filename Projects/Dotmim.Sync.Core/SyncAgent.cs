@@ -447,8 +447,6 @@ namespace Dotmim.Sync
                 this.SessionStateChanged?.Invoke(this, new SyncSessionStateEventArgs(this.SessionState));
 
                 // unlock sync since it's over
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
                 this.UnlockSync();
             }
 
