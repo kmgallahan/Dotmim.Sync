@@ -355,9 +355,15 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues}) as [c]");
             stringBuilder.AppendLine($"LEFT JOIN {this.TrackingTableQuotedShortName} AS [side] ON {str1}");
             stringBuilder.AppendLine($"LEFT JOIN {this.TableQuotedShortName} AS [base] ON {str2}");
-            stringBuilder.AppendLine($"WHERE ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id) ");
-            stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
-            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
+            // 1. Standard Update: Only allow if row exists (NOT NULL) AND Tracking conditions are met
+            // We verify [base] is NOT NULL to ensure we don't implicitly resurrect a tombstoned row here.
+            stringBuilder.Append($"WHERE (NOT ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")}) ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+
+            // 2. Missing Tracking: Allow write if Tracking row is missing (New Inserts or Data Update)
+            stringBuilder.AppendLine($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[side]")}) ");
+
+            // 3. Force Write
             stringBuilder.Append($"OR @sync_force_write = 1");
             stringBuilder.AppendLine($")");
 
