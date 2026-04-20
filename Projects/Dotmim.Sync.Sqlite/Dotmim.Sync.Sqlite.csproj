@@ -19,18 +19,10 @@
 
       <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-      <NuGetPublishVersion>7.0.1</NuGetPublishVersion>
-      <NuGetPublishType>local</NuGetPublishType>
+      <NuGetPublishLocation>$(OneDrive)\Dev\Projects\AllSystemsGo\LocalNugetFeed</NuGetPublishLocation>
       <NoPackageAnalysis>true</NoPackageAnalysis>
 
 	</PropertyGroup>
-
-	<ItemGroup>
-		<PackageReference Include="SS.NuGet.Publish" Version="1.0.2311.32">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-	</ItemGroup>
 	
 	<PropertyGroup>
 		<NoWarn>$(NoWarn)SA0001;SA1202;CA1308;CA1305;CA1822;CA1834;SA1600;IDE0017;CA2249;CA1866;CA2100;CA1307;CA1310;</NoWarn>
