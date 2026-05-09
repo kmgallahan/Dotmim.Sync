@@ -54,12 +54,6 @@
           "Microsoft.NETCore.Platforms": "1.1.0"
         }
       },
-      "SS.NuGet.Publish": {
-        "type": "Direct",
-        "requested": "[1.0.2311.32, )",
-        "resolved": "1.0.2311.32",
-        "contentHash": "TRf5RGnDISfNhj4Q8u+ldgmFgxJLZ0f1Ar1O4uxXf1rZ1oA031y/YpZtT3fqM6lXNHxLUYksY52r5OssD9d/Sg=="
-      },
       "StyleCop.Analyzers": {
         "type": "Direct",
         "requested": "[1.2.0-beta.556, )",
@@ -241,12 +235,6 @@
           "Microsoft.SourceLink.Common": "8.0.0"
         }
       },
-      "SS.NuGet.Publish": {
-        "type": "Direct",
-        "requested": "[1.0.2311.32, )",
-        "resolved": "1.0.2311.32",
-        "contentHash": "TRf5RGnDISfNhj4Q8u+ldgmFgxJLZ0f1Ar1O4uxXf1rZ1oA031y/YpZtT3fqM6lXNHxLUYksY52r5OssD9d/Sg=="
-      },
       "StyleCop.Analyzers": {
         "type": "Direct",
         "requested": "[1.2.0-beta.556, )",
@@ -372,12 +360,6 @@
           "Microsoft.Build.Tasks.Git": "8.0.0",
           "Microsoft.SourceLink.Common": "8.0.0"
         }
-      },
-      "SS.NuGet.Publish": {
-        "type": "Direct",
-        "requested": "[1.0.2311.32, )",
-        "resolved": "1.0.2311.32",
-        "contentHash": "TRf5RGnDISfNhj4Q8u+ldgmFgxJLZ0f1Ar1O4uxXf1rZ1oA031y/YpZtT3fqM6lXNHxLUYksY52r5OssD9d/Sg=="
       },
       "StyleCop.Analyzers": {
         "type": "Direct",

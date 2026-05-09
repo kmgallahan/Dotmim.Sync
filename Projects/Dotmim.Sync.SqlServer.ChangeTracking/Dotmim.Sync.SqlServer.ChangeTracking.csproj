@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
+		<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
 
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
