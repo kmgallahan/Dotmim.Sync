@@ -189,14 +189,23 @@ namespace Dotmim.Sync
             var arg = new ApplyChangesConflictOccuredArgs(scopeInfo, context, this, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
             if (interceptors.Count > 0)
             {
-                // Interceptor
-                await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
-
-                resolution = arg.Resolution;
-                finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
-                finalSenderScopeId = arg.SenderScopeId;
+                // Resolve the actual conflict type up front. Distinguishing RemoteIsDeletedLocalNotExists
+                // from a real RemoteIsDeletedLocalExists requires reading the local row, which is what
+                // GetSyncConflictAsync does.
                 var conflict = await arg.GetSyncConflictAsync().ConfigureAwait(false);
                 conflictType = conflict != null ? conflict.Type : conflictType;
+
+                // A remote deletion of a row this node never had is idempotent: nothing to resolve, so
+                // it is not surfaced as a conflict. Skip the interceptor; HandleConflictAsync treats it
+                // as a no-op rather than a resolved conflict.
+                if (conflictType != ConflictType.RemoteIsDeletedLocalNotExists)
+                {
+                    await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
+
+                    resolution = arg.Resolution;
+                    finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
+                    finalSenderScopeId = arg.SenderScopeId;
+                }
             }
             else
             {
@@ -223,6 +232,13 @@ namespace Dotmim.Sync
             var (conflictResolution, conflictType, finalRow, nullableSenderScopeId) =
                  await this.GetConflictResolutionAsync(scopeInfo, context, localScopeId, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+
+            // A remote deletion of a row that never existed in this database is idempotent: there is
+            // nothing to apply and nothing to resolve. It is a normal part of bidirectional sync (the
+            // row was created and deleted before this node ever saw it), not a conflict, so report it
+            // as a non-event rather than a resolved conflict.
+            if (conflictType == ConflictType.RemoteIsDeletedLocalNotExists)
+                return (false, false, null);
 
             Exception exception = null;
             var applied = false;
@@ -262,11 +278,8 @@ namespace Dotmim.Sync
 
                             break;
 
-                        // The row does not exists locally, and since it's coming from a deleted state, we can forget it
-                        case ConflictType.RemoteIsDeletedLocalNotExists:
-                            applied = false;
-                            conflictResolved = true;
-                            break;
+                        // RemoteIsDeletedLocalNotExists is handled as a non-event before this switch
+                        // (see the guard clause above) and never reaches here.
 
                         // The remote has delete the row, and local has insert or update it
                         // So delete the local row

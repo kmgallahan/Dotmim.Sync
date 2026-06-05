@@ -4,7 +4,7 @@
 		<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
         
 		<PackageId>Dotmim.Sync.Sqlite</PackageId>
-		<Version>1.3.5</Version>
+		<Version>1.3.6</Version>
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
 		<Title>Dotmim.Sync.Sqlite</Title>
