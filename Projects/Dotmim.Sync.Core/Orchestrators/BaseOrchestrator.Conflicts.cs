@@ -195,10 +195,13 @@ namespace Dotmim.Sync
                 var conflict = await arg.GetSyncConflictAsync().ConfigureAwait(false);
                 conflictType = conflict != null ? conflict.Type : conflictType;
 
-                // A remote deletion of a row this node never had is idempotent: nothing to resolve, so
-                // it is not surfaced as a conflict. Skip the interceptor; HandleConflictAsync treats it
-                // as a no-op rather than a resolved conflict.
-                if (conflictType != ConflictType.RemoteIsDeletedLocalNotExists)
+                // A remote deletion of a row that is already absent locally is idempotent: nothing to
+                // resolve, so it is not surfaced as a conflict. This covers both a row this node never
+                // had (RemoteIsDeletedLocalNotExists) and one this node already deleted
+                // (RemoteIsDeletedLocalIsDeleted) — the latter arises from at-least-once sync replay
+                // after a lost commit-ack, or the same row deleted on two nodes. Skip the interceptor;
+                // HandleConflictAsync treats both as a no-op rather than a resolved conflict.
+                if (conflictType is not (ConflictType.RemoteIsDeletedLocalNotExists or ConflictType.RemoteIsDeletedLocalIsDeleted))
                 {
                     await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
@@ -233,11 +236,13 @@ namespace Dotmim.Sync
                  await this.GetConflictResolutionAsync(scopeInfo, context, localScopeId, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
-            // A remote deletion of a row that never existed in this database is idempotent: there is
-            // nothing to apply and nothing to resolve. It is a normal part of bidirectional sync (the
-            // row was created and deleted before this node ever saw it), not a conflict, so report it
-            // as a non-event rather than a resolved conflict.
-            if (conflictType == ConflictType.RemoteIsDeletedLocalNotExists)
+            // A remote deletion of a row that is already absent locally is idempotent: there is nothing
+            // to apply and nothing to resolve. This covers both a row that never existed here
+            // (RemoteIsDeletedLocalNotExists — created and deleted before this node ever saw it) and one
+            // this node already deleted (RemoteIsDeletedLocalIsDeleted — an at-least-once sync replay
+            // after a lost commit-ack, or the same row deleted on two nodes). Neither is a conflict, so
+            // report it as a non-event rather than a resolved conflict.
+            if (conflictType is ConflictType.RemoteIsDeletedLocalNotExists or ConflictType.RemoteIsDeletedLocalIsDeleted)
                 return (false, false, null);
 
             Exception exception = null;
@@ -267,19 +272,9 @@ namespace Dotmim.Sync
                             conflictResolved = operationComplete && exception == null;
                             break;
 
-                        // Conflict, but both have delete the row, so just update the metadata to the right winner
-                        case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                            // (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                            //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
-                            // applied = false;
-                            // conflictResolved = operationComplete && exception == null;
-                            applied = false;
-                            conflictResolved = true;
-
-                            break;
-
-                        // RemoteIsDeletedLocalNotExists is handled as a non-event before this switch
-                        // (see the guard clause above) and never reaches here.
+                        // RemoteIsDeletedLocalIsDeleted and RemoteIsDeletedLocalNotExists are both
+                        // handled as idempotent non-events before this switch (see the guard clause
+                        // above) and never reach here.
 
                         // The remote has delete the row, and local has insert or update it
                         // So delete the local row

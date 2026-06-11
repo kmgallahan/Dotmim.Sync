@@ -3,7 +3,7 @@
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 		<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
 
-		<Version>1.3.6</Version>
+		<Version>1.3.7</Version>
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
 		<Title>Dotmim.Sync.SqlServer</Title>
