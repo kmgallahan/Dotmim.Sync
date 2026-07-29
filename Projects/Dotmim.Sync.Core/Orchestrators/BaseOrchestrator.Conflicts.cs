@@ -4,6 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -195,13 +196,11 @@ namespace Dotmim.Sync
                 var conflict = await arg.GetSyncConflictAsync().ConfigureAwait(false);
                 conflictType = conflict != null ? conflict.Type : conflictType;
 
-                // A remote deletion of a row that is already absent locally is idempotent: nothing to
-                // resolve, so it is not surfaced as a conflict. This covers both a row this node never
-                // had (RemoteIsDeletedLocalNotExists) and one this node already deleted
-                // (RemoteIsDeletedLocalIsDeleted) — the latter arises from at-least-once sync replay
-                // after a lost commit-ack, or the same row deleted on two nodes. Skip the interceptor;
-                // HandleConflictAsync treats both as a no-op rather than a resolved conflict.
-                if (conflictType is not (ConflictType.RemoteIsDeletedLocalNotExists or ConflictType.RemoteIsDeletedLocalIsDeleted))
+                // Some conflicts are idempotent non-events rather than divergence, and there is nothing
+                // for a handler to decide. Skip the interceptor for those; HandleConflictAsync treats
+                // them as no-ops rather than resolved conflicts. See IsIdempotentNonEvent for which
+                // shapes qualify and why.
+                if (!IsIdempotentNonEvent(conflictType, schemaChangesTable))
                 {
                     await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
@@ -222,6 +221,33 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Whether the conflict is an idempotent non-event: nothing diverged, so there is nothing to
+        /// apply and nothing to resolve.
+        /// </summary>
+        /// <remarks>
+        /// Two shapes qualify. The first is a remote deletion of a row already absent locally —
+        /// idempotent whether this node never had the row (RemoteIsDeletedLocalNotExists) or had
+        /// already deleted it (RemoteIsDeletedLocalIsDeleted), the latter arising from at-least-once
+        /// sync replay after a lost commit-ack, or from the same row being deleted on two nodes.
+        /// <para/>
+        /// The second is a re-delivered row on a table whose columns are entirely its primary key.
+        /// Such a table has no assignable columns, so both providers emit an apply that writes nothing
+        /// on a key collision — SQLite an upsert that does nothing, SQL Server a merge with no matched
+        /// arm. The zero rows that come back are indistinguishable from the timestamp guard refusing a
+        /// write, but cannot be one: the key <i>is</i> the row, so remote and local rows sharing a key
+        /// are byte-identical and no resolution could change any state. Left unrecognised, every
+        /// re-delivery of such a row is reported as a conflict that resolution then fails to resolve,
+        /// because the forced re-apply writes nothing either.
+        /// <para/>
+        /// Deliberately restricted to RemoteExistsLocalExists: on the same table
+        /// RemoteExistsLocalIsDeleted pits a live remote row against a local tombstone, which is a
+        /// genuine conflict with a real outcome to choose.
+        /// </remarks>
+        private static bool IsIdempotentNonEvent(ConflictType conflictType, SyncTable schemaTable)
+            => conflictType is ConflictType.RemoteIsDeletedLocalNotExists or ConflictType.RemoteIsDeletedLocalIsDeleted
+            || (conflictType is ConflictType.RemoteExistsLocalExists && !schemaTable.GetMutableColumns(false).Any());
+
+        /// <summary>
         /// Handle a conflict
         /// The int returned is the conflict count I need.
         /// </summary>
@@ -236,13 +262,11 @@ namespace Dotmim.Sync
                  await this.GetConflictResolutionAsync(scopeInfo, context, localScopeId, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
-            // A remote deletion of a row that is already absent locally is idempotent: there is nothing
-            // to apply and nothing to resolve. This covers both a row that never existed here
-            // (RemoteIsDeletedLocalNotExists — created and deleted before this node ever saw it) and one
-            // this node already deleted (RemoteIsDeletedLocalIsDeleted — an at-least-once sync replay
-            // after a lost commit-ack, or the same row deleted on two nodes). Neither is a conflict, so
-            // report it as a non-event rather than a resolved conflict.
-            if (conflictType is ConflictType.RemoteIsDeletedLocalNotExists or ConflictType.RemoteIsDeletedLocalIsDeleted)
+            // Report an idempotent non-event as exactly that rather than as a resolved conflict:
+            // counting it inflates ResolvedConflicts on consumers, and surfacing it hands operators a
+            // conflict warning for an apply where the two sides never disagreed. See
+            // IsIdempotentNonEvent for which shapes qualify and why.
+            if (IsIdempotentNonEvent(conflictType, schemaChangesTable))
                 return (false, false, null);
 
             Exception exception = null;
