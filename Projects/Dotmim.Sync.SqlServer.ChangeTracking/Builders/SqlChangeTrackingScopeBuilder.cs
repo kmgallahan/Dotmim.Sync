@@ -13,6 +13,21 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
         }
 
+        /// <summary>
+        /// T-SQL that leaves the highest change-tracking minimum valid version across the database's
+        /// tracked tables in an already-declared @maxVersion.
+        /// </summary>
+        /// <remarks>
+        /// Reads the catalog view instead of calling CHANGE_TRACKING_MIN_VALID_VERSION per table.
+        /// The function takes a schema-stability lock on every tracked table, so running it while
+        /// another session holds schema-modification locks (a concurrent apply that toggles
+        /// constraints holds them on every synced table until it commits) deadlocks, and the session
+        /// without a transaction is the one killed. The view reports the same version and touches
+        /// only catalog rows.
+        /// </remarks>
+        private const string SelectMaxMinValidVersion =
+            "SELECT @maxVersion = MAX(min_valid_version) FROM sys.change_tracking_tables;";
+
         /// <inheritdoc />
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
@@ -34,9 +49,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{this.ScopeInfoTableNames.Name}')
                     BEGIN
                         DECLARE @maxVersion bigint;
-                        SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
-                        FROM sys.tables T 
-                        WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+                        {SelectMaxMinValidVersion}
                         
                         UPDATE {this.ScopeInfoTableNames.QuotedFullName} WITH (READCOMMITTED) SET sync_scope_last_clean_timestamp = @maxVersion;
                     END 
@@ -145,9 +158,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
             var commandText = $@"
                     DECLARE @maxVersion bigint;
-                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
-                    FROM sys.tables T 
-                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+                    {SelectMaxMinValidVersion}
 
                     MERGE {this.ScopeInfoTableNames.QuotedFullName} WITH (READCOMMITTED) AS [base] 
                     USING (
@@ -221,9 +232,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // This value is maintained by SQL Server itself
             var commandText =
                 $@" DECLARE @maxVersion bigint;
-                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
-                    FROM sys.tables T 
-                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+                    {SelectMaxMinValidVersion}
 
                     SELECT [sync_scope_name], 
                           [sync_scope_schema], 
@@ -249,9 +258,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             var commandText =
                     $@"
                     DECLARE @maxVersion bigint;
-                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
-                    FROM sys.tables T 
-                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+                    {SelectMaxMinValidVersion}
 
                     SELECT [sync_scope_name], 
                           [sync_scope_schema], 
